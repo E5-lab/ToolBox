@@ -1,0 +1,75 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="Base64 编解码 - 我的工具箱" description="文本与 Base64 互转，支持中文">
+  <div class="tool-wrap">
+    <a class="back" href="/">← 返回首页</a>
+    <h1>🔤 Base64 编解码</h1>
+    <p class="sub">文本与 Base64 互转，支持中文 UTF-8，纯本地计算。</p>
+
+    <div class="field">
+      <label for="input">输入文本</label>
+      <textarea id="input" placeholder="输入要编码或解码的内容…"></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="primary" id="btn-encode">编码 (文本→Base64)</button>
+      <button class="primary" id="btn-decode">解码 (Base64→文本)</button>
+      <button id="btn-copy">复制结果</button>
+      <button id="btn-clear">清空</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="field">
+      <label for="output">结果</label>
+      <textarea id="output" readonly placeholder="结果会显示在这里"></textarea>
+    </div>
+  </div>
+</Base>
+
+<script is:inline>
+  const $ = (id) => document.getElementById(id);
+  const input = $('input');
+  const output = $('output');
+  const msg = $('msg');
+  function showMsg(t, type = 'error') { msg.textContent = t; msg.className = 'msg ' + type; }
+
+  // UTF-8 安全的文本 -> Base64
+  function utf8ToBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    bytes.forEach((b) => (bin += String.fromCharCode(b)));
+    return btoa(bin);
+  }
+  // Base64 -> UTF-8 安全的文本
+  function base64ToUtf8(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  $('btn-encode').addEventListener('click', () => {
+    if (!input.value) return showMsg('请输入文本');
+    try { output.value = utf8ToBase64(input.value); showMsg('编码成功', 'ok'); }
+    catch (e) { showMsg('编码失败：' + e.message); }
+  });
+
+  $('btn-decode').addEventListener('click', () => {
+    if (!input.value) return showMsg('请输入 Base64');
+    const clean = input.value.trim().replace(/\s+/g, '');
+    try { output.value = base64ToUtf8(clean); showMsg('解码成功', 'ok'); }
+    catch (e) { showMsg('Base64 格式不正确，无法解码'); }
+  });
+
+  $('btn-copy').addEventListener('click', async () => {
+    if (!output.value) return;
+    try { await navigator.clipboard.writeText(output.value); showMsg('已复制到剪贴板', 'ok'); }
+    catch { showMsg('复制失败，请手动选择文本复制'); }
+  });
+
+  $('btn-clear').addEventListener('click', () => {
+    input.value = ''; output.value = ''; msg.className = 'msg';
+  });
+</script>

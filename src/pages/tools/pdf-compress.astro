@@ -1,0 +1,71 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="PDF 压缩 - 我的工具箱" description="重新序列化以减小 PDF 体积">
+  <div class="tool-wrap">
+    <a class="back" href="/">← 返回首页</a>
+    <h1>🗜️ PDF 压缩</h1>
+    <p class="sub">通过重新序列化（无损）尝试减小体积。纯浏览器本地处理，不上传。</p>
+    <p class="sub" style="color:#b42318">提示：浏览器端无法压缩图片内容，若原文件已高度压缩，可能几乎无变化甚至略增。</p>
+
+    <div class="field">
+      <label for="file">选择 PDF 文件</label>
+      <input type="file" id="file" accept="application/pdf" />
+    </div>
+
+    <div class="btn-row">
+      <button class="primary" id="btn-compress">压缩</button>
+      <button id="btn-download" disabled>下载结果</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+    <div class="file-list" id="info"></div>
+  </div>
+</Base>
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" is:inline></script>
+
+<script is:inline>
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $('file');
+  const msg = $('msg');
+  const info = $('info');
+  const btnDownload = $('btn-download');
+  let resultBytes = null;
+  function showMsg(t, type = 'error') { msg.textContent = t; msg.className = 'msg ' + type; }
+  function fmt(n) { return (n / 1024).toFixed(1) + ' KB'; }
+  function download(bytes, name) {
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  $('btn-compress').addEventListener('click', async () => {
+    const file = fileInput.files[0];
+    if (!file) return showMsg('请先选择 PDF 文件');
+    if (!window.PDFLib) return showMsg('PDF 库加载中，请稍候重试');
+    showMsg('压缩中（重新序列化）…', 'ok');
+    const before = file.size;
+    try {
+      const { PDFDocument } = window.PDFLib;
+      const bytes = await file.arrayBuffer();
+      const src = await PDFDocument.load(bytes);
+      // useObjectStreams: false 可减少部分结构开销
+      resultBytes = await src.save({ useObjectStreams: false });
+      btnDownload.disabled = false;
+      const after = resultBytes.length;
+      const diff = ((after - before) / before * 100).toFixed(1);
+      info.innerHTML = `原大小：${fmt(before)} → 压缩后：${fmt(after)}（${diff >= 0 ? '+' : ''}${diff}%）`;
+      showMsg(after < before ? '压缩完成' : '已完成（体积变化不明显）', 'ok');
+    } catch (e) { showMsg('压缩失败：' + (e.message || e)); }
+  });
+
+  btnDownload.addEventListener('click', () => { if (resultBytes) download(resultBytes, 'compressed.pdf'); });
+</script>
+
+<style>
+  .file-list { margin-top: 12px; font-size: 13px; color: var(--muted); }
+  input[type=file] { width: 100%; padding: 10px; border: 1px dashed var(--border); border-radius: 10px; background: var(--surface); color: var(--text); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+</style>

@@ -1,0 +1,88 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="二维码生成器 - 我的工具箱" description="文本/链接生成二维码">
+  <div class="tool-wrap">
+    <a class="back" href="/">← 返回首页</a>
+    <h1>🔳 二维码生成器</h1>
+    <p class="sub">把文本或链接生成二维码，可下载 PNG / SVG，本地生成不上传。</p>
+
+    <div class="field">
+      <label for="text">内容（文本或链接）</label>
+      <textarea id="text" placeholder="https://example.com 或任意文本">https://example.com</textarea>
+    </div>
+
+    <div class="field">
+      <label for="size">尺寸（像素）</label>
+      <input type="number" id="size" value="256" min="64" max="1024" style="max-width:160px" />
+    </div>
+
+    <div class="btn-row">
+      <button class="primary" id="btn-gen">生成</button>
+      <button id="btn-png">下载 PNG</button>
+      <button id="btn-svg">下载 SVG</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="qr-box">
+      <canvas id="canvas"></canvas>
+      <div id="svg-wrap"></div>
+    </div>
+  </div>
+</Base>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" is:inline></script>
+
+<script is:inline>
+  const $ = (id) => document.getElementById(id);
+  const text = $('text');
+  const size = $('size');
+  const canvas = $('canvas');
+  const svgWrap = $('svg-wrap');
+  const msg = $('msg');
+  function showMsg(t, type = 'error') { msg.textContent = t; msg.className = 'msg ' + type; }
+
+  async function generate() {
+    const content = text.value;
+    if (!content) return showMsg('请输入内容');
+    const px = Math.min(1024, Math.max(64, parseInt(size.value || '256', 10) || 256));
+    const opts = { width: px, margin: 2, errorCorrectionLevel: 'M' };
+    if (!window.QRCode) return showMsg('二维码库加载中，请稍候重试');
+    try {
+      await window.QRCode.toCanvas(canvas, content, opts);
+      const svg = await window.QRCode.toString(content, { type: 'svg', ...opts, width: undefined });
+      svgWrap.innerHTML = svg;
+      showMsg('生成成功，可下载', 'ok');
+    } catch (e) {
+      showMsg('生成失败：' + e.message);
+    }
+  }
+
+  $('btn-gen').addEventListener('click', generate);
+
+  $('btn-png').addEventListener('click', () => {
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a'); a.href = url; a.download = 'qrcode.png'; a.click();
+  });
+
+  $('btn-svg').addEventListener('click', () => {
+    const svg = svgWrap.querySelector('svg');
+    if (!svg) return showMsg('请先生成二维码');
+    const data = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([data], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'qrcode.svg'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // 初次自动生成
+  if (window.QRCode) generate();
+  else { const t = setInterval(() => { if (window.QRCode) { generate(); clearInterval(t); } }, 50); }
+</script>
+
+<style>
+  .qr-box { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 12px; align-items: flex-start; }
+  .qr-box canvas { background: #fff; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+  #svg-wrap svg { background: #fff; padding: 12px; border: 1px solid var(--border); border-radius: 10px; max-width: 100%; }
+</style>

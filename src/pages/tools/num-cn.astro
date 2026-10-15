@@ -1,0 +1,137 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="数字大写转换 - 我的工具箱" description="数字转人民币大写 / 中文大写">
+  <div class="tool-wrap">
+    <a class="back" href="/">← 返回首页</a>
+    <h1>💴 数字大写转换</h1>
+    <p class="sub">数字转人民币大写 / 中文大写，纯本地计算，支持小数与负数。</p>
+
+    <div class="field">
+      <label for="input">输入数字</label>
+      <input type="text" id="input" placeholder="例如 1234.56 或 -10200" />
+    </div>
+
+    <div class="btn-row">
+      <button class="primary" id="btn-convert">转换</button>
+      <button id="btn-copy-rmb">复制人民币大写</button>
+      <button id="btn-copy-cn">复制中文大写</button>
+      <button id="btn-clear">清空</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="field">
+      <label>人民币大写</label>
+      <textarea id="out-rmb" readonly placeholder="壹仟贰佰叁拾肆元伍角陆分"></textarea>
+    </div>
+    <div class="field">
+      <label>中文大写（普通）</label>
+      <textarea id="out-cn" readonly placeholder="一千二百三十四"></textarea>
+    </div>
+  </div>
+</Base>
+
+<script is:inline>
+  const $ = (id) => document.getElementById(id);
+  const input = $('input');
+  const outRmb = $('out-rmb');
+  const outCn = $('out-cn');
+  const msg = $('msg');
+  function showMsg(t, type = 'error') { msg.textContent = t; msg.className = 'msg ' + type; }
+
+  const CN_NUM = ['零','壹','贰','叁','肆','伍','陆','柒','捌','玖'];
+  const CN_RADICE = ['','拾','佰','仟'];
+  const CN_UNITS = ['','万','亿','兆'];
+
+  // 整数 -> 中文大写（带 万/亿/兆 节）
+  function intToChinese(intStr) {
+    if (intStr === '' || intStr === '0') return '零';
+    const len = intStr.length;
+    let out = '';
+    let zeroCount = 0;
+    for (let i = 0; i < len; i++) {
+      const n = intStr.substr(i, 1);
+      const p = len - i - 1;
+      const q = Math.floor(p / 4);
+      const m = p % 4;
+      if (n === '0') {
+        zeroCount++;
+      } else {
+        if (zeroCount > 0) out += CN_NUM[0];
+        zeroCount = 0;
+        out += CN_NUM[parseInt(n, 10)] + CN_RADICE[m];
+      }
+      if (m === 0 && zeroCount < 4) {
+        out += CN_UNITS[q];
+        zeroCount = 0;
+      }
+    }
+    return out;
+  }
+
+  function toRMB(value) {
+    const neg = value < 0;
+    value = Math.abs(value);
+    const intPart = Math.floor(value);
+    const intStr = String(intPart);
+    let intCN = intToChinese(intStr);
+    const cents = Math.round((value - intPart) * 100);
+    const jiao = Math.floor(cents / 10);
+    const fen = cents % 10;
+    let result = '';
+    if (intPart > 0) result += intCN + '元';
+    if (jiao > 0) result += CN_NUM[jiao] + '角';
+    if (jiao === 0 && fen > 0) result += CN_NUM[0] + CN_NUM[fen] + '分';
+    else if (fen > 0) result += CN_NUM[fen] + '分';
+    if (result === '') result = CN_NUM[0] + '元整';
+    else if (jiao === 0 && fen === 0) result += '整';
+    return (neg ? '负' : '') + result;
+  }
+
+  // 普通中文数字（小写：一二三…，无 万/亿 节）
+  const PLAIN = ['零','一','二','三','四','五','六','七','八','九'];
+  const PLAIN_UNIT = ['','十','百','千'];
+  function plainChinese(intStr) {
+    if (intStr === '' || intStr === '0') return '零';
+    const len = intStr.length;
+    let out = '';
+    for (let i = 0; i < len; i++) {
+      const n = intStr.substr(i, 1);
+      const pos = len - i - 1;
+      if (n === '0') {
+        if (i < len - 1 && out[out.length - 1] !== '零') out += '零';
+      } else {
+        out += PLAIN[parseInt(n, 10)] + PLAIN_UNIT[pos];
+      }
+    }
+    out = out.replace(/零+$/, '');
+    return out;
+  }
+
+  function convert() {
+    const raw = input.value.trim();
+    if (!raw) return showMsg('请输入数字');
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return showMsg('请输入有效的数字');
+    if (Math.abs(value) >= 1e16) return showMsg('数字过大，超出转换范围');
+    const intStr = String(Math.floor(Math.abs(value)));
+    outRmb.value = toRMB(value);
+    // 中文大写（普通）只处理整数部分，避免歧义
+    outCn.value = (value < 0 ? '负' : '') + plainChinese(intStr);
+    showMsg('转换成功', 'ok');
+  }
+
+  $('btn-convert').addEventListener('click', convert);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') convert(); });
+  async function copyTo(el, label) {
+    if (!el.value) return;
+    try { await navigator.clipboard.writeText(el.value); showMsg('已复制' + label, 'ok'); }
+    catch { showMsg('复制失败，请手动选择'); }
+  }
+  $('btn-copy-rmb').addEventListener('click', () => copyTo(outRmb, '人民币大写'));
+  $('btn-copy-cn').addEventListener('click', () => copyTo(outCn, '中文大写'));
+  $('btn-clear').addEventListener('click', () => {
+    input.value = ''; outRmb.value = ''; outCn.value = ''; msg.className = 'msg';
+  });
+</script>
