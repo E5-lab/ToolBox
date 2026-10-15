@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { darkTheme, NConfigProvider, NMessageProvider, NGlobalStyle } from 'naive-ui';
 import { searchText } from './composables/useSearch';
+import QuickAccess from './components/QuickAccess.vue';
 
 const theme = ref<'light' | 'dark'>('light');
 const naiveTheme = computed(() => (theme.value === 'dark' ? darkTheme : null));
@@ -53,11 +54,13 @@ function onSearchInput(v: string) {
           </div>
 
           <div class="actions">
+            <QuickAccess />
             <button class="act-btn" title="切换主题" @click="toggle">
               {{ theme === 'dark' ? '🌙' : '☀️' }}
               <span class="act-label">切换主题</span>
             </button>
-          </div>        </header>
+          </div>
+        </header>
 
         <main class="container">
           <router-view />

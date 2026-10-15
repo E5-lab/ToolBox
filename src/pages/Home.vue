@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   categoriesOf,
   countOfGroup,
@@ -10,6 +11,7 @@ import {
 import type { Tool } from '../tools/types';
 import ToolCard from '../components/ToolCard.vue';
 import { searchText } from '../composables/useSearch';
+import { favorites, recents } from '../composables/useFavorites';
 
 /** 当前一级分类 */
 const activeGroup = ref<string>(groups[0]?.name ?? '');
@@ -89,6 +91,24 @@ const breadcrumb = computed(() => {
     { label: currentCat.value, icon: currentCatIcon.value },
   ];
 });
+
+/** 首页快捷区：收藏与最近使用（取前 8 个） */
+function resolve(paths: string[]): Tool[] {
+  return paths
+    .slice(0, 8)
+    .map((p) => tools.find((t) => t.path === p))
+    .filter((t): t is Tool => Boolean(t));
+}
+const favTools = computed(() => resolve(favorites.value));
+const recentTools = computed(() => resolve(recents.value));
+
+const router = useRouter();
+function pickTool(path: string) {
+  router.push(path);
+}
+const showQuick = computed(
+  () => !isSearching.value && (favTools.value.length > 0 || recentTools.value.length > 0)
+);
 </script>
 
 <template>
@@ -134,6 +154,47 @@ const breadcrumb = computed(() => {
 
       <!-- 功能选择（右侧） -->
       <section class="main">
+        <!-- 快捷区：收藏 / 最近使用 -->
+        <div v-if="showQuick" class="quick-row">
+          <div v-if="favTools.length" class="quick-block">
+            <div class="qb-head">
+              <span class="qb-icon">⭐</span>
+              <span class="qb-title">我的收藏</span>
+              <span class="qb-count">{{ favTools.length }}</span>
+            </div>
+            <div class="qb-chips">
+              <button
+                v-for="t in favTools"
+                :key="t.path"
+                class="chip"
+                @click="pickTool(t.path)"
+              >
+                <span class="chip-icon">{{ t.icon }}</span>
+                {{ t.name }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="recentTools.length" class="quick-block">
+            <div class="qb-head">
+              <span class="qb-icon">🕐</span>
+              <span class="qb-title">最近使用</span>
+              <span class="qb-count">{{ recentTools.length }}</span>
+            </div>
+            <div class="qb-chips">
+              <button
+                v-for="t in recentTools"
+                :key="t.path"
+                class="chip"
+                @click="pickTool(t.path)"
+              >
+                <span class="chip-icon">{{ t.icon }}</span>
+                {{ t.name }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="crumb">
           <template v-for="(b, i) in breadcrumb" :key="i">
             <span v-if="i > 0" class="sep">/</span>
@@ -299,6 +360,65 @@ const breadcrumb = computed(() => {
 .main {
   min-width: 0;
 }
+/* ---------- 快捷区（收藏 / 最近） ---------- */
+.quick-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.quick-block {
+  padding: 13px 15px 15px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--n-primary-color) 5%, var(--n-card-color));
+}
+.qb-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 11px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.qb-icon {
+  font-size: 15px;
+}
+.qb-count {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--n-text-color-3);
+}
+.qb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--n-border-color);
+  background: var(--n-card-color);
+  color: var(--n-text-color);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.chip:hover {
+  border-color: var(--n-primary-color);
+  color: var(--n-primary-color);
+  transform: translateY(-1px);
+}
+.chip-icon {
+  font-size: 13px;
+}
+
 .crumb {
   display: flex;
   align-items: center;
@@ -306,8 +426,7 @@ const breadcrumb = computed(() => {
   margin-bottom: 16px;
   font-size: 14px;
   color: var(--n-text-color-3);
-}
-.crumb-item {
+}.crumb-item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -350,6 +469,9 @@ const breadcrumb = computed(() => {
   .body {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+  .quick-row {
+    grid-template-columns: 1fr;
   }
   .side {
     position: static;

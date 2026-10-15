@@ -1,7 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { Tool } from '../tools/types';
+import { favorites, toggleFavorite } from '../composables/useFavorites';
 
-defineProps<{ tool: Tool }>();
+const props = defineProps<{ tool: Tool }>();
+
+const fav = computed(() => favorites.value.includes(props.tool.path));
+
+function onStar(e: MouseEvent) {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleFavorite(props.tool.path);
+}
 </script>
 
 <template>
@@ -11,6 +21,11 @@ defineProps<{ tool: Tool }>();
       <div class="name">{{ tool.name }}</div>
       <div class="desc">{{ tool.description }}</div>
     </div>
+
+    <button class="star" :class="{ on: fav }" :title="fav ? '取消收藏' : '加入收藏'" @click="onStar">
+      {{ fav ? '★' : '☆' }}
+    </button>
+
     <div class="go" aria-hidden="true">→</div>
   </router-link>
 </template>
@@ -23,8 +38,7 @@ defineProps<{ tool: Tool }>();
   gap: 14px;
   padding: 17px 38px 17px 17px;
   border-radius: 12px;
-  /* 明确的边框，让卡片一眼看出是可点击的入口 */
-  border: 1.5px solid color-mix(in srgb, var(--n-border-color) 100%, transparent);
+  border: 1.5px solid var(--n-border-color);
   background: var(--n-card-color);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: all 0.18s ease;
@@ -80,11 +94,41 @@ defineProps<{ tool: Tool }>();
   overflow: hidden;
 }
 
-/* 右下角箭头：显式提示"可点击进入" */
+/* 收藏星标 */
+.star {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--n-text-color-3);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: all 0.15s ease;
+}
+.star:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--n-primary-color) 14%, transparent);
+  color: var(--n-primary-color);
+}
+.star.on {
+  opacity: 1;
+  color: #f0a020;
+}
+
+/* 右下角箭头：提示可点击进入 */
 .go {
   position: absolute;
   right: 14px;
-  bottom: 14px;
+  bottom: 12px;
   font-size: 15px;
   color: var(--n-text-color-3);
   opacity: 0.5;

@@ -20,9 +20,19 @@
 
 ## 界面结构
 
-- **顶栏**：品牌 logo + 全局搜索框（跨分类实时过滤）+ 主题切换
-- **首页**：顶部分类 Tab + 左侧分类侧栏（含工具数量）+ 右侧工具卡片网格
+- **顶栏**：品牌 logo + 全局搜索框（跨分类实时过滤）+ **我的收藏 / 最近使用**（弹窗列表）+ 主题切换
+- **一级菜单**（顶部）：大类切换（文本处理 / 开发工具 / 图像工具 / 文档工具），带工具计数
+- **二级菜单**（左侧）：当前大类下的子分类，带计数与高亮指示条
+- **功能选择**（右侧）：该子分类下的工具卡片网格（带边框、图标块、收藏星标）
+- **快捷区**：首页右上方展示「我的收藏」「最近使用」的快捷标签，一键直达
 - **工具页**：统一的卡片容器（返回首页、标题、描述、内容区）
+
+### 收藏与最近使用
+
+- **收藏**：点击任意工具卡片右上角的 ☆ 切换，数据存于浏览器 `localStorage`（`toolbox:favorites`）
+- **最近使用**：进入工具页自动记录，保留最近 12 个并去重置顶（`toolbox:recents`）
+- 顶栏两个入口以弹窗展示完整列表；首页右上方以标签形式展示前 8 个
+- 均为纯本地存储，不上传任何数据
 
 ## 本地开发
 
@@ -69,15 +79,15 @@ npx wrangler deploy
 
 ```
 src/
-  App.vue                 # 顶层布局 + 顶栏（品牌/搜索/主题）
+  App.vue                 # 顶层布局 + 顶栏（品牌/搜索/收藏/最近/主题）
   main.ts                 # 应用入口
-  router/index.ts         # 路由（工具自动注册）
-  pages/Home.vue          # 首页：分类 Tab + 侧栏 + 卡片网格
-  components/             # ToolPage / ToolCard 共享组件
-  composables/            # useCopy（复制）、useSearch（全局搜索状态）
+  router/index.ts         # 路由（工具自动注册 + 记录最近使用）
+  pages/Home.vue          # 首页：一级菜单 + 二级菜单 + 快捷区 + 卡片网格
+  components/             # ToolPage / ToolCard / QuickAccess 共享组件
+  composables/            # useCopy（复制）、useSearch（搜索）、useFavorites（收藏/最近）
   tools/                  # 每个工具一个文件夹（index.ts 元数据 + index.vue 组件）
-    index.ts              # 汇总所有工具、分类与过滤函数
-    <tool>/index.ts       # 工具元数据（path/name/category/icon…）
+    index.ts              # 汇总工具、两级分类与过滤函数
+    <tool>/index.ts       # 工具元数据（path/name/group/category/icon…）
     <tool>/index.vue      # 工具界面
 ```
 
