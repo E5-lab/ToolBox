@@ -1,7 +1,8 @@
 name = "my-toolbox"
-compatibility_date = "2026-10-01"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "./dist"
 
-# Cloudflare 2025 改版后：纯静态站用 Workers + Static Assets 部署。
-# 不再依赖旧 Pages 控制台入口，一条 `wrangler deploy` 即可上线。
 [assets]
 directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"

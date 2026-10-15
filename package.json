@@ -1,18 +1,25 @@
 {
   "name": "my-toolbox",
-  "type": "module",
-  "version": "0.1.0",
   "private": true,
+  "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "deploy": "astro build && wrangler deploy"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "astro": "^5.0.0"
+    "vue": "^3.4.27",
+    "vue-router": "^4.3.2",
+    "naive-ui": "^2.38.1",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
+    "marked": "^12.0.2",
+    "mermaid": "^10.9.1"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "@vitejs/plugin-vue": "^5.0.4",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
   }
 }

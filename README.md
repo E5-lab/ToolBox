@@ -1,120 +1,70 @@
-# 我的工具箱 (My Toolbox)
+# 我的工具箱（My Toolbox）
 
-纯前端在线工具集合，**数据不出浏览器**。两类工具并存：
+一个纯前端的在线工具集合站，**数据不出浏览器**。技术栈与设计语言完全参考 [it-tools](https://github.com/CorentinTh/it-tools)：
 
-- **专属工具**（本仓库，Astro 静态站，自己写 JS 逻辑）
-- **it-tools 现成底座**（fork 部署，70+ 开发者工具，见下文「轨道 A」）
+- **Vue 3** + **TypeScript** + **Vite**
+- **Naive UI** 组件库（暗色 / 亮色主题，与 it-tools 一致）
+- **Vue Router** 客户端路由（SPA）
+- 工具逻辑全部在浏览器本地计算，不依赖后端、不上传数据
 
----
+## 内置工具
 
-## 目录结构
+| 分类 | 工具 |
+|---|---|
+| 开发 | JSON 格式化、时间戳转换、Base64 编解码、UUID 生成器 |
+| 实用 | 数字大写转换 |
+| 文本 | Markdown 编辑器 |
+| 图像 | 二维码生成器 |
+| 绘图 | 流程图绘制（Mermaid） |
+| PDF | PDF 合并、PDF 拆分、PDF 压缩、PDF 旋转 |
 
-```
-my-toolbox/
-├── astro.config.mjs        # 静态输出配置（output: 'static'）
-├── wrangler.toml           # Cloudflare Workers 静态资产部署配置
-├── src/
-│   ├── data/tools.ts       # 工具清单（新增工具在此登记）
-│   ├── layouts/Base.astro  # 页面基础布局
-│   ├── components/         # Nav / Footer / ToolCard / SearchBar
-│   ├── pages/
-│   │   ├── index.astro     # 首页：分类导航 + 实时搜索
-│   │   └── tools/          # 各工具独立页面（自己写逻辑）
-│   │       ├── json-formatter.astro
-│   │       └── timestamp.astro
-│   └── styles/global.css
-```
-
----
+> PDF / 二维码 / 流程图 依赖 `pdf-lib`、`qrcode`、`marked`、`mermaid`，在构建时由 Vite 打包进静态资源；其余工具为纯原生 JS。
 
 ## 本地开发
 
 ```bash
 npm install
-npm run dev      # 默认 http://localhost:4321
+npm run dev      # 本地预览 http://localhost:5173
+npm run build    # 产物输出到 dist/
 ```
-
----
 
 ## 部署到 Cloudflare（Workers + Static Assets）
 
-> **Cloudflare 2025 改版提醒**：Pages 已并入 **Workers**。现在纯静态站统一用 **Workers + Static Assets** 部署，**不再有独立的 Pages 控制台入口**——你之前找不到 Pages 路径就是这个原因。本方案完全走 Workers，复用你现有的 Cloudflare 账号。
+Cloudflare 2025 已将 Pages 并入 Workers，纯静态站推荐用 **Workers + Static Assets** 部署：
 
-### 方式一：wrangler CLI（推荐，最稳、最可控）
-
+**方式一：wrangler 命令行（推荐）**
 ```bash
-npm install
 npm run build
-npx wrangler deploy
+npx wrangler deploy        # 读取 wrangler.toml，产物 dist 作为静态资产
+```
+`wrangler.toml` 已配置 `not_found_handling = "single-page-application"`，支持前端路由刷新不 404。
+
+**方式二：Cloudflare Dashboard**
+1. Workers & Pages → Create → 导入 Git 仓库 `E5-lab/ToolBox`
+2. 构建命令：`npm run build`，输出目录：`dist`
+3. 保存并部署，之后每次 push 自动构建
+
+## 目录结构
+
+```
+src/
+  App.vue                 # 顶层布局 + 主题（暗/亮）
+  main.ts                 # 应用入口
+  router/index.ts         # 路由（工具自动注册）
+  pages/Home.vue          # 首页：分类网格 + 搜索
+  components/             # ToolPage / ToolCard 共享组件
+  composables/useCopy.ts  # 复制工具
+  tools/                  # 每个工具一个文件夹（index.ts 元数据 + index.vue 组件）
+    index.ts              # 汇总所有工具并导出
+    <tool>/index.ts       # 工具元数据（path/name/category/icon…）
+    <tool>/index.vue      # 工具界面
 ```
 
-首次运行会打开浏览器让你登录 Cloudflare 账号。部署完成后拿到 `https://my-toolbox.<sub>.workers.dev` 域名。
+## 新增一个工具
 
-### 方式二：Cloudflare Dashboard（Workers Builds 连接 Git）
+1. 在 `src/tools/` 下新建文件夹，例如 `my-tool/`；
+2. 写 `index.vue`（组件，使用 `<ToolPage>` 包裹标题与内容）；
+3. 写 `index.ts` 导出 `Tool` 元数据（见 `src/tools/types.ts`）；
+4. 在 `src/tools/index.ts` 的数组里加上该工具。
 
-1. 登录 [dash.cloudflare.com](https://dash.cloudflare.com)
-2. 左侧菜单 **Workers & Pages**（改版后的统一入口）
-3. 右上角 **Create** → 选 **Worker** → 选「从 Git 仓库导入 / Connect to Git」
-4. 选择你的 GitHub 仓库，构建配置：
-   - 框架预设：Astro（或自定义）
-   - 构建命令：`npm run build`
-   - 输出目录：`dist`
-5. 部署完成后，在 **Settings → Triggers / Domains** 绑定自定义域名（如 `tools.yourdomain.com`），Cloudflare 自动签发证书。
-
-### 绑定自定义域名
-
-在 Worker 的 Settings → Triggers → Custom Domains 添加你的子域，Cloudflare 自动配置 DNS 与 HTTPS。
-
----
-
-## 轨道 A：部署 it-tools 作为现成底座
-
-[it-tools](https://github.com/CorentinTh/it-tools) 是成熟的开发者工具集合（70+ 工具，Vue 3 纯静态站，数据不出浏览器）。
-
-1. **Fork** 仓库到你的 GitHub
-2. **本地构建**（产出 `dist/`）：
-
-   ```bash
-   pnpm install
-   pnpm build
-   ```
-
-3. **部署到 Cloudflare Workers**（静态资产 + SPA 回退）。在 it-tools 项目根加 `wrangler.toml`：
-
-   ```toml
-   name = "it-tools"
-   compatibility_date = "2026-10-01"
-
-   [assets]
-   directory = "./dist"
-   not_found_handling = "single-page-application"
-   ```
-
-   > `not_found_handling = "single-page-application"` 很关键：it-tools 用 Vue Router，深层链接直接刷新才不会 404。
-
-   然后：
-
-   ```bash
-   npx wrangler deploy
-   ```
-
-4. 或用 Dashboard：Workers & Pages → Create → 导入 it-tools 仓库，构建命令 `pnpm build`，输出 `dist`。
-
----
-
-## 如何新增一个专属工具
-
-1. 在 `src/data/tools.ts` 的 `tools` 数组加一条：`slug` / `title` / `description` / `category` / `icon` / `keywords`（keywords 用于搜索）
-2. 在 `src/pages/tools/` 下新建 `${slug}.astro`，用 `<script>` 写浏览器端 JS 逻辑（数据不出浏览器）
-3. `npm run build` 验证
-4. 部署（`npx wrangler deploy` 或推送到连接的 Git 仓库自动构建）
-
-首页导航、分类与实时搜索会**自动**根据 `tools.ts` 生效，无需改其他文件。
-
----
-
-## 设计要点
-
-- 纯静态、零后端，所有计算在浏览器本地完成
-- 新增工具只需「登记清单 + 一个页面」，首页/搜索自动同步
-- 部署统一走 Cloudflare Workers（Static Assets），复用现有账号
+首页、搜索、路由会**自动生效**，无需改动其他文件。
