@@ -1,0 +1,87 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="JSON 格式化 - 我的工具箱" description="本地格式化、压缩、校验 JSON">
+  <div class="tool-wrap">
+    <a class="back" href="/">← 返回首页</a>
+    <h1>🧩 JSON 格式化</h1>
+    <p class="sub">在浏览器本地完成格式化与校验，内容不会上传。</p>
+
+    <div class="field">
+      <label for="input">输入 JSON</label>
+      <textarea id="input" placeholder='{"hello":"world", "n": 1}'></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="primary" id="btn-format">格式化</button>
+      <button id="btn-minify">压缩</button>
+      <button id="btn-validate">校验</button>
+      <button id="btn-copy">复制结果</button>
+      <button id="btn-clear">清空</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="field">
+      <label for="output">结果</label>
+      <textarea id="output" readonly placeholder="结果会显示在这里"></textarea>
+    </div>
+  </div>
+</Base>
+
+<script>
+  const $ = (id: string) => document.getElementById(id)!;
+  const input = $('input') as HTMLTextAreaElement;
+  const output = $('output') as HTMLTextAreaElement;
+  const msg = $('msg') as HTMLElement;
+
+  function showMsg(text: string, type: 'error' | 'ok' = 'error') {
+    msg.textContent = text;
+    msg.className = 'msg ' + type;
+  }
+
+  function getParsed() {
+    try {
+      return JSON.parse(input.value);
+    } catch (e) {
+      showMsg('JSON 解析失败：' + (e as Error).message);
+      return undefined;
+    }
+  }
+
+  $('btn-format').addEventListener('click', () => {
+    const data = getParsed();
+    if (data === undefined) return;
+    output.value = JSON.stringify(data, null, 2);
+    showMsg('格式化成功', 'ok');
+  });
+
+  $('btn-minify').addEventListener('click', () => {
+    const data = getParsed();
+    if (data === undefined) return;
+    output.value = JSON.stringify(data);
+    showMsg('已压缩', 'ok');
+  });
+
+  $('btn-validate').addEventListener('click', () => {
+    const data = getParsed();
+    if (data === undefined) return;
+    showMsg('✓ JSON 合法', 'ok');
+  });
+
+  $('btn-copy').addEventListener('click', async () => {
+    if (!output.value) return;
+    try {
+      await navigator.clipboard.writeText(output.value);
+      showMsg('已复制到剪贴板', 'ok');
+    } catch {
+      showMsg('复制失败，请手动选择文本复制');
+    }
+  });
+
+  $('btn-clear').addEventListener('click', () => {
+    input.value = '';
+    output.value = '';
+    msg.className = 'msg';
+  });
+</script>

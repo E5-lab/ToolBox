@@ -1,0 +1,74 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="时间戳转换 - 我的工具箱" description="Unix 时间戳与日期互转">
+  <div class="tool-wrap">
+    <a class="back" href="/">← 返回首页</a>
+    <h1>⏱️ 时间戳转换</h1>
+    <p class="sub">本地计算，支持秒 / 毫秒时间戳。</p>
+
+    <div class="field">
+      <label>当前时间戳（秒）</label>
+      <input type="text" id="now" readonly />
+    </div>
+
+    <div class="field">
+      <label for="ts">时间戳 → 日期</label>
+      <div class="btn-row">
+        <input type="text" id="ts" placeholder="例如 1700000000 或 1700000000000" style="flex:1" />
+        <button class="primary" id="ts-to-date">转换</button>
+      </div>
+      <input type="text" id="ts-result" readonly placeholder="转换结果" />
+    </div>
+
+    <div class="field">
+      <label for="dt">日期 → 时间戳</label>
+      <div class="btn-row">
+        <input type="text" id="dt" placeholder="例如 2026-10-15 14:20:00" style="flex:1" />
+        <button class="primary" id="date-to-ts">转换</button>
+      </div>
+      <div class="btn-row">
+        <input type="text" id="dt-sec" readonly placeholder="秒级时间戳" />
+        <input type="text" id="dt-ms" readonly placeholder="毫秒级时间戳" />
+      </div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+  </div>
+</Base>
+
+<script>
+  const $ = (id: string) => document.getElementById(id)!;
+  const msg = $('msg') as HTMLElement;
+  function showMsg(t: string, type: 'error' | 'ok' = 'error') {
+    msg.textContent = t;
+    msg.className = 'msg ' + type;
+  }
+
+  const now = $('now') as HTMLInputElement;
+  const tick = () => { now.value = String(Math.floor(Date.now() / 1000)) + '  (秒)'; };
+  tick();
+  setInterval(tick, 1000);
+
+  $('ts-to-date').addEventListener('click', () => {
+    const raw = ($('ts') as HTMLInputElement).value.trim();
+    if (!raw) return showMsg('请输入时间戳');
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return showMsg('时间戳必须是数字');
+    const ms = raw.length <= 10 ? n * 1000 : n;
+    const d = new Date(ms);
+    if (isNaN(d.getTime())) return showMsg('无效时间戳');
+    ($('ts-result') as HTMLInputElement).value = d.toLocaleString('zh-CN') + '  /  ' + d.toISOString();
+    showMsg('转换成功', 'ok');
+  });
+
+  $('date-to-ts').addEventListener('click', () => {
+    const raw = ($('dt') as HTMLInputElement).value.trim();
+    if (!raw) return showMsg('请输入日期');
+    const d = new Date(raw.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return showMsg('无效日期，建议格式：2026-10-15 14:20:00');
+    ($('dt-sec') as HTMLInputElement).value = String(Math.floor(d.getTime() / 1000));
+    ($('dt-ms') as HTMLInputElement).value = String(d.getTime());
+    showMsg('转换成功', 'ok');
+  });
+</script>

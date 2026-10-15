@@ -1,0 +1,11 @@
+# build output
+dist/
+# astro
+.astro/
+# dependencies
+node_modules/
+# wrangler
+.wrangler/
+# env
+.env
+.env.production

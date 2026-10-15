@@ -1,0 +1,13 @@
+---
+import type { Tool } from '../data/tools';
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+<a class="card tool-card" href={`/tools/${tool.slug}`}
+   data-title={tool.title} data-keywords={tool.keywords} data-category={tool.category}>
+  <div class="icon">{tool.icon}</div>
+  <div class="title">{tool.title}</div>
+  <div class="desc">{tool.description}</div>
+</a>

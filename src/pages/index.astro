@@ -1,0 +1,55 @@
+---
+import Base from '../layouts/Base.astro';
+import SearchBar from '../components/SearchBar.astro';
+import ToolCard from '../components/ToolCard.astro';
+import { tools } from '../data/tools';
+
+const categories = [...new Set(tools.map((t) => t.category))];
+---
+<Base>
+  <section class="hero">
+    <h1>我的工具箱</h1>
+    <p>纯前端在线工具集合 · 数据不出浏览器 · 永久免费</p>
+  </section>
+
+  <SearchBar />
+
+  <div id="tool-list">
+    {categories.map((cat) => (
+      <section class="cat-group" data-category={cat}>
+        <h2 class="cat-title">{cat}</h2>
+        <div class="grid">
+          {tools.filter((t) => t.category === cat).map((tool) => (
+            <ToolCard tool={tool} />
+          ))}
+        </div>
+      </section>
+    ))}
+    <p class="empty" id="no-result" style="display:none">没有匹配的工具，换个关键词试试。</p>
+  </div>
+</Base>
+
+<script>
+  const input = document.getElementById('tool-search') as HTMLInputElement | null;
+  const cards = Array.from(document.querySelectorAll('.tool-card')) as HTMLElement[];
+  const groups = Array.from(document.querySelectorAll('.cat-group')) as HTMLElement[];
+  const noResult = document.getElementById('no-result') as HTMLElement | null;
+
+  input?.addEventListener('input', () => {
+    const q = (input.value || '').trim().toLowerCase();
+    let visible = 0;
+    cards.forEach((card) => {
+      const hay = (card.dataset.title + ' ' + card.dataset.keywords + ' ' + card.dataset.category).toLowerCase();
+      const match = q === '' || hay.includes(q);
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    groups.forEach((g) => {
+      const anyVisible = Array.from(g.querySelectorAll('.tool-card')).some(
+        (c) => (c as HTMLElement).style.display !== 'none'
+      );
+      g.style.display = anyVisible ? '' : 'none';
+    });
+    if (noResult) noResult.style.display = visible === 0 ? '' : 'none';
+  });
+</script>
