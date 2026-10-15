@@ -58,8 +58,8 @@ npx wrangler deploy
 3. 部署命令：`npx wrangler deploy`（读取 `wrangler.toml` 中的 `[assets]`）
 4. 保存并部署，之后每次 push 自动构建
 
-**SPA 路由回退**：除 `wrangler.toml` 的 `not_found_handling` 外，`public/_redirects`
-（`/* /index.html 200`）也提供一份回退规则，确保前端路由刷新不 404。
+**SPA 路由回退**：由 `wrangler.toml` 的 `not_found_handling = "single-page-application"` 统一处理，
+无需 `public/_redirects`（二者同时存在会被判定为无限循环规则而部署失败）。
 
 ## 目录结构
 
