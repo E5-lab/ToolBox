@@ -57,8 +57,7 @@ function onSearchInput(v: string) {
               {{ theme === 'dark' ? '🌙' : '☀️' }}
               <span class="act-label">切换主题</span>
             </button>
-          </div>
-        </header>
+          </div>        </header>
 
         <main class="container">
           <router-view />

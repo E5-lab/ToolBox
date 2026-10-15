@@ -1,109 +1,157 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { categories, countByCategory, filterTools, tools } from '../tools';
+import {
+  categoriesOf,
+  countOfGroup,
+  filterTools,
+  groups,
+  tools,
+} from '../tools';
 import type { Tool } from '../tools/types';
 import ToolCard from '../components/ToolCard.vue';
 import { searchText } from '../composables/useSearch';
 
-/** 当前选中的分类，'' 表示全部 */
-const activeCat = ref<string>(categories[0]?.name ?? '');
+/** 当前一级分类 */
+const activeGroup = ref<string>(groups[0]?.name ?? '');
+/** 当前二级分类 */
+const activeCat = ref<string>('');
 
 const isSearching = computed(() => searchText.value.trim().length > 0);
 
-/** 搜索时展示全部匹配结果；否则按选中分类过滤 */
+/** 当前一级分类下的二级分类 */
+const subCats = computed(() => categoriesOf(activeGroup.value));
+
+/** 右侧要展示的工具 */
 const list = computed<Tool[]>(() => {
-  const all = filterTools(searchText.value);
-  if (isSearching.value) return all;
-  return all.filter((t) => t.category === activeCat.value);
+  if (isSearching.value) return filterTools(searchText.value);
+  const cats = subCats.value;
+  if (!cats.length) return [];
+  const cat = cats.some((c) => c.name === activeCat.value)
+    ? activeCat.value
+    : cats[0].name;
+  return tools.filter((t) => t.group === activeGroup.value && t.category === cat);
 });
 
-/** 每个分类在当前搜索下的命中数量 */
-function countHit(name: string): number {
-  return filterTools(searchText.value).filter((t) => t.category === name).length;
-}
-
-/** 只有在搜索时，分类侧栏才显示命中数，否则显示总数 */
-function catCount(name: string): number {
-  return isSearching.value ? countHit(name) : countByCategory(name);
-}
-
-const visibleCategories = computed(() =>
-  categories.filter((c) => !isSearching.value || countHit(c.name) > 0)
-);
-
-// 搜索时如果当前分类没有命中，自动切到第一个有命中的分类（仅用于高亮）
-watch(searchText, () => {
-  if (!isSearching.value) return;
-  const first = visibleCategories.value[0];
-  if (first && countHit(activeCat.value) === 0) activeCat.value = first.name;
+/** 当前选中的二级分类（处理默认值） */
+const currentCat = computed(() => {
+  const cats = subCats.value;
+  if (!cats.length) return '';
+  return cats.some((c) => c.name === activeCat.value) ? activeCat.value : cats[0].name;
 });
 
-const currentTitle = computed(
-  () => categories.find((c) => c.name === activeCat.value)?.name ?? '全部工具'
+const currentCatIcon = computed(
+  () => subCats.value.find((c) => c.name === currentCat.value)?.icon ?? '📦'
 );
-const currentIcon = computed(
-  () => categories.find((c) => c.name === activeCat.value)?.icon ?? '📦'
+
+/** 一级菜单上要显示的计数：搜索时显示匹配数，否则显示总数 */
+function groupCount(g: string) {
+  if (!isSearching.value) return countOfGroup(g);
+  const hits = filterTools(searchText.value).filter((t) => t.group === g).length;
+  return hits;
+}
+
+const visibleGroups = computed(() =>
+  groups.filter((g) => !isSearching.value || groupCount(g.name) > 0)
 );
+
+function pickGroup(name: string) {
+  activeGroup.value = name;
+  activeCat.value = '';
+  if (isSearching.value) searchText.value = '';
+}
 
 function pickCat(name: string) {
   activeCat.value = name;
-  if (isSearching.value) searchText.value = '';
 }
+
+// 搜索时跳转到第一个有命中的一级分类，便于高亮
+watch(searchText, () => {
+  if (!isSearching.value) return;
+  const first = visibleGroups.value[0];
+  if (first && groupCount(activeGroup.value) === 0) {
+    activeGroup.value = first.name;
+    activeCat.value = '';
+  }
+});
+
+// 一级分类切换后，保证二级分类有默认选中
+watch(activeGroup, () => {
+  const cats = subCats.value;
+  if (cats.length && !cats.some((c) => c.name === activeCat.value)) {
+    activeCat.value = cats[0].name;
+  }
+});
+
+const breadcrumb = computed(() => {
+  if (isSearching.value) return [{ label: '搜索结果' }];
+  return [
+    { label: activeGroup.value },
+    { label: currentCat.value, icon: currentCatIcon.value },
+  ];
+});
 </script>
 
 <template>
   <div class="home">
-    <!-- 顶部分类 Tab -->
-    <nav class="cat-tabs">
+    <!-- 一级菜单（顶部） -->
+    <nav class="tabs">
       <button
-        v-for="c in visibleCategories"
-        :key="c.name"
-        class="cat-tab"
-        :class="{ active: !isSearching && c.name === activeCat }"
-        @click="pickCat(c.name)"
+        v-for="g in visibleGroups"
+        :key="g.name"
+        class="tab"
+        :class="{ active: !isSearching && g.name === activeGroup }"
+        @click="pickGroup(g.name)"
       >
-        <span class="tab-icon">{{ c.icon }}</span>
-        <span class="tab-name">{{ c.name }}</span>
-        <span class="tab-count">{{ catCount(c.name) }}</span>
+        <span class="tab-icon">{{ g.icon }}</span>
+        <span class="tab-name">{{ g.name }}</span>
+        <span class="tab-count">{{ groupCount(g.name) }}</span>
       </button>
     </nav>
 
     <div class="body">
-      <!-- 左侧分类侧栏 -->
+      <!-- 二级菜单（左侧） -->
       <aside class="side">
         <div class="side-head">
-          <span class="side-icon">{{ currentIcon }}</span>
-          <span class="side-name">{{ isSearching ? '搜索结果' : currentTitle }}</span>
+          <span class="sh-icon">📂</span>
+          <span class="sh-name">{{ isSearching ? '搜索结果' : activeGroup }}</span>
         </div>
         <ul class="side-list">
           <li
-            v-for="c in visibleCategories"
+            v-for="c in subCats"
             :key="c.name"
             class="side-item"
-            :class="{ active: !isSearching && c.name === activeCat }"
+            :class="{ active: !isSearching && c.name === currentCat }"
             @click="pickCat(c.name)"
           >
+            <span class="bar" />
             <span class="si-icon">{{ c.icon }}</span>
             <span class="si-name">{{ c.name }}</span>
-            <span class="si-count">{{ catCount(c.name) }}</span>
+            <span class="si-count">{{ c.count }}</span>
           </li>
+          <li v-if="!subCats.length" class="side-empty">暂无子分类</li>
         </ul>
       </aside>
 
-      <!-- 右侧工具卡片区 -->
+      <!-- 功能选择（右侧） -->
       <section class="main">
-        <div class="main-head">
-          <h2 class="main-title">
-            <span class="mt-icon">{{ isSearching ? '🔍' : currentIcon }}</span>
-            {{ isSearching ? `“${searchText}” 的搜索结果` : currentTitle }}
-          </h2>
-          <span class="main-count">共 {{ list.length }} 个工具</span>
+        <div class="crumb">
+          <template v-for="(b, i) in breadcrumb" :key="i">
+            <span v-if="i > 0" class="sep">/</span>
+            <span class="crumb-item">
+              <span v-if="b.icon" class="ci-icon">{{ b.icon }}</span>
+              {{ b.label }}
+            </span>
+          </template>
+          <span class="crumb-count">共 {{ list.length }} 个功能</span>
         </div>
 
         <div v-if="list.length" class="grid">
           <ToolCard v-for="t in list" :key="t.path" :tool="t" />
         </div>
-        <p v-else class="empty">没有匹配的工具，换个关键词试试。</p>
+        <div v-else class="empty">
+          <div class="empty-icon">🔍</div>
+          <p>没有匹配的功能，换个关键词试试。</p>
+        </div>
       </section>
     </div>
   </div>
@@ -114,57 +162,63 @@ function pickCat(name: string) {
   padding-top: 18px;
 }
 
-/* 顶部分类 Tab */
-.cat-tabs {
+/* ---------- 一级菜单 ---------- */
+.tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--n-border-color);
 }
-.cat-tab {
+.tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--n-border-color);
-  background: var(--n-color);
+  gap: 7px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--n-text-color);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
   transition: all 0.15s ease;
 }
-.cat-tab:hover {
-  border-color: var(--n-primary-color);
+.tab:hover {
+  background: color-mix(in srgb, var(--n-primary-color) 10%, transparent);
+  color: var(--n-primary-color);
 }
-.cat-tab.active {
+.tab.active {
   background: var(--n-primary-color);
   border-color: var(--n-primary-color);
   color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--n-primary-color) 30%, transparent);
 }
 .tab-icon {
-  font-size: 14px;
+  font-size: 16px;
 }
 .tab-count {
   font-size: 11px;
-  opacity: 0.7;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
 }
 
+/* ---------- 布局 ---------- */
 .body {
   display: grid;
-  grid-template-columns: 210px 1fr;
+  grid-template-columns: 220px 1fr;
   gap: 24px;
   margin-top: 22px;
 }
 
-/* 左侧栏 */
+/* ---------- 二级菜单 ---------- */
 .side {
   align-self: start;
   position: sticky;
-  top: 76px;
+  top: 78px;
   border: 1px solid var(--n-border-color);
   border-radius: 12px;
   background: var(--n-card-color);
@@ -176,35 +230,51 @@ function pickCat(name: string) {
   gap: 8px;
   padding: 14px 16px;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14.5px;
   border-bottom: 1px solid var(--n-border-color);
+  background: color-mix(in srgb, var(--n-primary-color) 6%, transparent);
 }
-.side-icon {
-  font-size: 17px;
+.sh-icon {
+  font-size: 16px;
 }
 .side-list {
   list-style: none;
-  margin: 6px;
+  margin: 8px;
   padding: 0;
 }
 .side-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 9px 12px;
-  border-radius: 8px;
+  padding: 10px 12px 10px 15px;
+  border-radius: 9px;
   cursor: pointer;
   font-size: 13.5px;
   color: var(--n-text-color-2, var(--n-text-color));
-  transition: background 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.side-item .bar {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 17px;
+  border-radius: 2px;
+  background: var(--n-primary-color);
+  transition: transform 0.15s ease;
 }
 .side-item:hover {
-  background: color-mix(in srgb, var(--n-primary-color) 10%, transparent);
+  background: color-mix(in srgb, var(--n-primary-color) 9%, transparent);
 }
 .side-item.active {
-  background: color-mix(in srgb, var(--n-primary-color) 16%, transparent);
+  background: color-mix(in srgb, var(--n-primary-color) 15%, transparent);
   color: var(--n-primary-color);
   font-weight: 600;
+}
+.side-item.active .bar {
+  transform: translateY(-50%) scaleY(1);
 }
 .si-icon {
   font-size: 15px;
@@ -213,50 +283,73 @@ function pickCat(name: string) {
   flex: 1;
 }
 .si-count {
-  font-size: 12px;
-  opacity: 0.65;
+  font-size: 11.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.side-empty {
+  padding: 14px;
+  font-size: 13px;
+  color: var(--n-text-color-3);
+  text-align: center;
 }
 
-/* 右侧主区 */
+/* ---------- 右侧功能区 ---------- */
 .main {
   min-width: 0;
 }
-.main-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.main-title {
+.crumb {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin: 0;
-  font-size: 20px;
-}
-.mt-icon {
-  font-size: 20px;
-}
-.main-count {
-  font-size: 13px;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
   color: var(--n-text-color-3);
+}
+.crumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--n-text-color);
+  font-weight: 600;
+}
+.crumb-item:last-of-type {
+  color: var(--n-primary-color);
+}
+.ci-icon {
+  font-size: 15px;
+}
+.sep {
+  opacity: 0.45;
+}
+.crumb-count {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 16px;
 }
 
 .empty {
-  color: var(--n-text-color-3);
-  padding: 40px 0;
+  padding: 60px 0;
   text-align: center;
+  color: var(--n-text-color-3);
+}
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+  opacity: 0.6;
 }
 
 @media (max-width: 860px) {
   .body {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
   .side {
     position: static;
@@ -264,10 +357,14 @@ function pickCat(name: string) {
   .side-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 6px;
   }
   .side-item {
     flex: 0 0 auto;
+    padding-left: 12px;
+  }
+  .side-item .bar {
+    display: none;
   }
 }
 </style>

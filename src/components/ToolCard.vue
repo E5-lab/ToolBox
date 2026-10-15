@@ -11,44 +11,61 @@ defineProps<{ tool: Tool }>();
       <div class="name">{{ tool.name }}</div>
       <div class="desc">{{ tool.description }}</div>
     </div>
+    <div class="go" aria-hidden="true">→</div>
   </router-link>
 </template>
 
 <style scoped>
 .card {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 13px;
-  padding: 15px;
+  gap: 14px;
+  padding: 17px 38px 17px 17px;
   border-radius: 12px;
-  border: 1px solid var(--n-border-color);
+  /* 明确的边框，让卡片一眼看出是可点击的入口 */
+  border: 1.5px solid color-mix(in srgb, var(--n-border-color) 100%, transparent);
   background: var(--n-card-color);
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.18s ease;
   height: 100%;
+  cursor: pointer;
 }
 .card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--n-primary-color);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--n-primary-color) 12%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--n-primary-color) 22%, transparent);
 }
+.card:active {
+  transform: translateY(-1px);
+}
+
 .icon-box {
   flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 21px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--n-primary-color) 12%, transparent);
+  font-size: 23px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--n-primary-color) 25%, transparent);
+  background: color-mix(in srgb, var(--n-primary-color) 13%, transparent);
+  transition: all 0.18s ease;
 }
+.card:hover .icon-box {
+  background: var(--n-primary-color);
+  border-color: var(--n-primary-color);
+}
+
 .info {
   min-width: 0;
+  flex: 1;
 }
 .name {
   font-weight: 600;
   font-size: 14.5px;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -61,5 +78,21 @@ defineProps<{ tool: Tool }>();
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 右下角箭头：显式提示"可点击进入" */
+.go {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  font-size: 15px;
+  color: var(--n-text-color-3);
+  opacity: 0.5;
+  transition: all 0.18s ease;
+}
+.card:hover .go {
+  color: var(--n-primary-color);
+  opacity: 1;
+  transform: translateX(3px);
 }
 </style>
