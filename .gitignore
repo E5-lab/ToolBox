@@ -10,6 +10,5 @@ node_modules/
 .env
 .env.production
 
-# 临时验证产物 / 待补模块
-.pending/
+# 临时验证产物
 verify-*.mjs

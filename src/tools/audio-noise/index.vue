@@ -629,9 +629,7 @@ function exportCsv() {
           {{ num(result.rc.lmf) }} dB
         </div>
         <div v-if="qaiInfo" class="sub">
-          QAI {{ qaiInfo.qai }}（{{ qaiInfo.balance }}）<template v-if="qaiInfo.incomplete">
-            · 频带不完整</template
-          >
+          QAI {{ qaiInfo.qai }}（{{ qaiInfo.balance }}）<template v-if="qaiInfo.incomplete"> · 频带不完整</template>
           <div class="mini">{{ qaiInfo.sd }}</div>
         </div>
         <div v-if="qaiInfo" class="sub" :class="qaiInfo.rvWarn ? 'warn' : ''">
@@ -704,9 +702,7 @@ function exportCsv() {
           </div>
         </div>
         <div class="target-note">
-          判定标准：实测值 ≤ 目标上限即达标。<template v-if="target.note"
-            >该用途备注：{{ target.note }}。</template
-          >目标值仅供工程参考，正式验收以合同/规范要求为准。
+          判定标准：实测值 ≤ 目标上限即达标。<template v-if="target.note">该用途备注：{{ target.note }}。</template>目标值仅供工程参考，正式验收以合同/规范要求为准。
         </div>
       </div>
       <p v-else class="inline-note">请输入频谱后查看目标值对照结果。</p>

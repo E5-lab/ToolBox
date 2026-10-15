@@ -17,6 +17,7 @@ import audioPerforation from './audio-perforation';
 import audioLevels from './audio-levels';
 import audioAbsorber from './audio-absorber';
 import audioRt60 from './audio-rt60';
+import audioNoise from './audio-noise';
 import audioStc from './audio-stc';
 import audioBarrier from './audio-barrier';
 import audioVibration from './audio-vibration';
@@ -40,6 +41,7 @@ export const tools: Tool[] = [
   audioLevels,
   audioAbsorber,
   audioRt60,
+  audioNoise,
   audioStc,
   audioBarrier,
   audioVibration,
