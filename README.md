@@ -28,21 +28,38 @@ npm run dev      # 本地预览 http://localhost:5173
 npm run build    # 产物输出到 dist/
 ```
 
-## 部署到 Cloudflare（Workers + Static Assets）
+## 部署到 Cloudflare
 
-Cloudflare 2025 已将 Pages 并入 Workers，纯静态站推荐用 **Workers + Static Assets** 部署：
+本项目是纯静态 SPA，产物为 `dist/`，通过 **Workers + Static Assets** 托管。
 
-**方式一：wrangler 命令行（推荐）**
-```bash
-npm run build
-npx wrangler deploy        # 读取 wrangler.toml，产物 dist 作为静态资产
+`wrangler.toml` 核心配置：
+```toml
+name = "toolbox"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
 ```
-`wrangler.toml` 已配置 `not_found_handling = "single-page-application"`，支持前端路由刷新不 404。
 
-**方式二：Cloudflare Dashboard**
+> 注意：**不要**在 `[assets]` 里写 `binding = "ASSETS"`。`ASSETS` 是 Cloudflare 的保留绑定名，
+> 会导致部署报错 `The name 'ASSETS' is reserved`。省略 `binding` 即可自动使用静态资产托管。
+
+**方式一：wrangler 命令行**
+```bash
+npm install
+npm run build
+npx wrangler deploy
+```
+
+**方式二：Cloudflare Dashboard 连接 Git**
 1. Workers & Pages → Create → 导入 Git 仓库 `E5-lab/ToolBox`
-2. 构建命令：`npm run build`，输出目录：`dist`
-3. 保存并部署，之后每次 push 自动构建
+2. 构建命令：`npm run build`
+3. 部署命令：`npx wrangler deploy`（读取 `wrangler.toml` 中的 `[assets]`）
+4. 保存并部署，之后每次 push 自动构建
+
+**SPA 路由回退**：除 `wrangler.toml` 的 `not_found_handling` 外，`public/_redirects`
+（`/* /index.html 200`）也提供一份回退规则，确保前端路由刷新不 404。
 
 ## 目录结构
 
