@@ -13,6 +13,14 @@ import pdfMerge from './pdf-merge';
 import pdfSplit from './pdf-split';
 import pdfCompress from './pdf-compress';
 import pdfRotate from './pdf-rotate';
+import audioPerforation from './audio-perforation';
+import audioLevels from './audio-levels';
+import audioAbsorber from './audio-absorber';
+import audioRt60 from './audio-rt60';
+import audioStc from './audio-stc';
+import audioBarrier from './audio-barrier';
+import audioVibration from './audio-vibration';
+import audioMuffler from './audio-muffler';
 
 export const tools: Tool[] = [
   jsonFormatter,
@@ -28,6 +36,14 @@ export const tools: Tool[] = [
   pdfSplit,
   pdfCompress,
   pdfRotate,
+  audioPerforation,
+  audioLevels,
+  audioAbsorber,
+  audioRt60,
+  audioStc,
+  audioBarrier,
+  audioVibration,
+  audioMuffler,
 ];
 
 /** 一级分类（顶部菜单）顺序与图标 */
@@ -36,6 +52,7 @@ export const groups: GroupMeta[] = [
   { name: '开发工具', icon: '🧩' },
   { name: '图像工具', icon: '🖼️' },
   { name: '文档工具', icon: '📄' },
+  { name: '声学计算', icon: '🔊' },
 ];
 
 /** 二级分类（左侧菜单）顺序与图标 */
@@ -52,6 +69,11 @@ export const categoryMetas: CategoryMeta[] = [
   { name: '绘图', icon: '📊', group: '图像工具' },
   // 文档工具
   { name: 'PDF 处理', icon: '📑', group: '文档工具' },
+  // 声学计算
+  { name: '基础计算', icon: '🔊', group: '声学计算' },
+  { name: '材料与构件', icon: '🧱', group: '声学计算' },
+  { name: '房间声学', icon: '🏛️', group: '声学计算' },
+  { name: '环境与振动', icon: '🌀', group: '声学计算' },
 ];
 
 /** 每个一级分类下的二级分类（带数量），按登记顺序 */

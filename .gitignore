@@ -9,3 +9,7 @@ node_modules/
 # env
 .env
 .env.production
+
+# 临时验证产物 / 待补模块
+.pending/
+verify-*.mjs
