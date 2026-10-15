@@ -12,13 +12,17 @@
 | 分类 | 工具 |
 |---|---|
 | 开发 | JSON 格式化、时间戳转换、Base64 编解码、UUID 生成器 |
-| 实用 | 数字大写转换 |
-| 文本 | Markdown 编辑器 |
-| 图像 | 二维码生成器 |
-| 绘图 | 流程图绘制（Mermaid） |
+| 文本 | Markdown 编辑器、百家姓编解码、数字大写转换 |
+| 图像 | 二维码生成器、流程图绘制（Mermaid） |
 | PDF | PDF 合并、PDF 拆分、PDF 压缩、PDF 旋转 |
 
-> PDF / 二维码 / 流程图 依赖 `pdf-lib`、`qrcode`、`marked`、`mermaid`，在构建时由 Vite 打包进静态资源；其余工具为纯原生 JS。
+> PDF / 二维码 / 流程图 / Markdown 依赖 `pdf-lib`、`qrcode`、`mermaid`、`marked`，在构建时由 Vite 打包进静态资源；其余工具为纯原生 JS。
+
+## 界面结构
+
+- **顶栏**：品牌 logo + 全局搜索框（跨分类实时过滤）+ 主题切换
+- **首页**：顶部分类 Tab + 左侧分类侧栏（含工具数量）+ 右侧工具卡片网格
+- **工具页**：统一的卡片容器（返回首页、标题、描述、内容区）
 
 ## 本地开发
 
@@ -65,14 +69,14 @@ npx wrangler deploy
 
 ```
 src/
-  App.vue                 # 顶层布局 + 主题（暗/亮）
+  App.vue                 # 顶层布局 + 顶栏（品牌/搜索/主题）
   main.ts                 # 应用入口
   router/index.ts         # 路由（工具自动注册）
-  pages/Home.vue          # 首页：分类网格 + 搜索
+  pages/Home.vue          # 首页：分类 Tab + 侧栏 + 卡片网格
   components/             # ToolPage / ToolCard 共享组件
-  composables/useCopy.ts  # 复制工具
+  composables/            # useCopy（复制）、useSearch（全局搜索状态）
   tools/                  # 每个工具一个文件夹（index.ts 元数据 + index.vue 组件）
-    index.ts              # 汇总所有工具并导出
+    index.ts              # 汇总所有工具、分类与过滤函数
     <tool>/index.ts       # 工具元数据（path/name/category/icon…）
     <tool>/index.vue      # 工具界面
 ```

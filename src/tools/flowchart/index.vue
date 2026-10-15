@@ -67,7 +67,16 @@ onMounted(() => {
       <n-button @click="clearAll">清空</n-button>
     </n-space>
     <div class="fc-grid">
-      <n-input v-model:value="code" type="textarea" spellcheck="false" class="fc-input" placeholder="输入 Mermaid 代码…" />
+      <n-input
+        v-model:value="code"
+        type="textarea"
+        spellcheck="false"
+        class="fc-input"
+        placeholder="输入 Mermaid 代码…"
+        :autosize="false"
+        :resizable="false"
+        rows="18"
+      />
       <div ref="preview" class="fc-preview" />
     </div>
   </ToolPage>
@@ -79,13 +88,18 @@ onMounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 14px;
+  align-items: stretch;
 }
+.fc-input :deep(.n-input__textarea-el),
 .fc-input :deep(textarea) {
-  min-height: 440px;
+  height: 520px !important;
+  min-height: 520px !important;
   font-family: ui-monospace, Menlo, monospace;
+  font-size: 13.5px;
 }
 .fc-preview {
-  min-height: 440px;
+  height: 520px;
+  min-height: 520px;
   padding: 16px;
   overflow: auto;
   border: 1px solid var(--n-border-color);
@@ -98,7 +112,11 @@ onMounted(() => {
 }
 @media (max-width: 720px) {
   .fc-grid { grid-template-columns: 1fr; }
-  .fc-input :deep(textarea) { min-height: 220px; }
-  .fc-preview { min-height: 220px; }
+  .fc-input :deep(.n-input__textarea-el),
+  .fc-input :deep(textarea),
+  .fc-preview {
+    height: 300px;
+    min-height: 300px;
+  }
 }
 </style>

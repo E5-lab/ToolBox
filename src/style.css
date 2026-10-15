@@ -4,18 +4,20 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
+a { text-decoration: none; color: inherit; }
 
 .app {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: #0f0f13;
-  color: #d8d8dc;
-}
-.app.light {
   background: #f6f7f9;
   color: #1f2329;
+}
+.app.dark {
+  background: #101014;
+  color: #e3e3e6;
 }
 
 .topbar {
@@ -24,55 +26,64 @@ body {
   z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 16px;
-  background: color-mix(in srgb, var(--n-color) 80%, transparent);
-  backdrop-filter: blur(8px);
+  height: 60px;
+  padding: 0 22px;
+  background: color-mix(in srgb, var(--n-color) 88%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--n-border-color);
 }
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 18px;
+  gap: 9px;
   cursor: pointer;
   user-select: none;
+  flex: 0 0 auto;
 }
-.brand .logo { width: 26px; height: 26px; border-radius: 7px; }
+.brand .logo { width: 30px; height: 30px; border-radius: 8px; }
+
 .container {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: 0 22px 72px;
   flex: 1;
 }
 
-.hero { padding: 16px 0 4px; }
-.hero h1 { margin: 0 0 8px; font-size: 28px; }
-.hero p { margin: 0; color: var(--n-text-color-3, #888); }
-
-.cat { margin-top: 28px; }
-.cat-title {
-  font-size: 13px;
-  color: var(--n-text-color-3, #888);
-  margin: 0 0 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-.empty { color: var(--n-text-color-3, #888); padding: 20px 0; }
-
-/* tool page */
+/* ---------- 工具详情页 ---------- */
+.tool-page { padding-top: 20px; }
 .tool-page .back {
-  display: inline-block;
-  margin: 6px 0 16px;
-  color: var(--n-primary-color, #63e2b7);
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 14px;
+  padding: 5px 12px 5px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--n-border-color);
+  color: var(--n-text-color-2, var(--n-text-color));
+  font-size: 13px;
   cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
-.tool-page .title { margin: 0 0 4px; font-size: 24px; }
-.tool-page .sub { margin: 0 0 20px; color: var(--n-text-color-3, #888); }
+.tool-page .back:hover {
+  border-color: var(--n-primary-color);
+  color: var(--n-primary-color);
+}
+.tool-page .title {
+  margin: 0 0 6px;
+  font-size: 25px;
+}
+.tool-page .sub {
+  margin: 0 0 20px;
+  color: var(--n-text-color-3, #888);
+  font-size: 13.5px;
+}
+.tool-page .tool-body {
+  padding: 20px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 14px;
+  background: var(--n-card-color);
+}
 .tool-page .msg { font-size: 13px; margin: 8px 0; color: #e88080; }
 .tool-page .msg.ok { color: #63e2b7; }
 .tool-page .hint { font-size: 13px; color: var(--n-text-color-3, #888); }
@@ -86,3 +97,8 @@ input[type="file"] {
   color: var(--n-text-color);
 }
 input[type="file"]:disabled { opacity: 0.5; }
+
+@media (max-width: 720px) {
+  .container { padding: 0 14px 56px; }
+  .topbar { padding: 0 14px; }
+}
