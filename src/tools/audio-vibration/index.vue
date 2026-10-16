@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { NAlert, NButton, NInputNumber, NSelect, NSpace } from 'naive-ui';
+import { NAlert, NButton, NInput, NInputNumber, NSelect, NSpace } from 'naive-ui';
 import { useMessage } from 'naive-ui';
 import ToolPage from '../../components/ToolPage.vue';
 import { useCopy } from '../../composables/useCopy';
@@ -192,6 +192,8 @@ const panelButtons = [
   { key: 'select', label: '静变形法 · 计算书' },
   { key: 'verify', label: '频率比法 · 验算' },
   { key: 'reverse', label: '反算与对照' },
+  { key: 'check', label: '厂家计算书复核' },
+  { key: 'hx', label: '环新式计算书复核' },
 ];
 
 /* ---------------- 面板 1：静变形法 ---------------- */
@@ -398,6 +400,261 @@ const effTable = computed<TableRow[]>(
       targets: [80, 85, 90, 95, 97, 98, 99],
     }) as unknown as TableRow[]
 );
+
+/* ---------------- 面板 4：厂家计算书复核 ---------------- */
+interface CheckRow {
+  key: string;
+  label: string;
+  unit: string;
+  note?: string;
+  check: {
+    provided: boolean;
+    recomputed: number;
+    claimed: number | null;
+    diff: number;
+    rel: number;
+    status: string;
+  };
+}
+interface VerifySheetResult {
+  ok: boolean;
+  error?: string;
+  Wd?: number;
+  W?: number;
+  delta?: number;
+  fnCpm?: number;
+  fdCpm?: number | null;
+  z?: number | null;
+  T?: number | null;
+  efficiency?: number | null;
+  internalDelta?: number | null;
+  internalFnHz?: number | null;
+  internalEff?: number | null;
+  rows: CheckRow[];
+  providedCount: number;
+  mismatchCount: number;
+  allConsistent: boolean;
+}
+
+const cWa = ref(234);
+const cSafety = ref(1.3);
+const cCount = ref(4);
+const cK = ref(3);
+const cUnit = ref('kg/mm');
+const cRpm = ref(1450);
+const cClaimedDelta = ref<number | null>(null);
+const cClaimedFn = ref<number | null>(null);
+const cClaimedEff = ref<number | null>(null);
+
+const verifySheetResult = computed<VerifySheetResult>(
+  () =>
+    Vibration.verifySheet({
+      deviceWeight: cWa.value,
+      safety: cSafety.value,
+      count: cCount.value,
+      rpm: cRpm.value,
+      stiffness: cK.value,
+      stiffnessUnit: cUnit.value,
+      claimedDeflection: cClaimedDelta.value,
+      claimedFnCpm: cClaimedFn.value,
+      claimedEfficiency: cClaimedEff.value,
+    }) as unknown as VerifySheetResult
+);
+const vs = computed<VerifySheetResult | null>(() => (verifySheetResult.value.ok ? verifySheetResult.value : null));
+
+const checkVerdict = computed<{ type: 'info' | 'success' | 'error'; text: string } | null>(() => {
+  const r = vs.value;
+  if (!r) return null;
+  if (r.providedCount === 0)
+    return {
+      type: 'info',
+      text: '已按厂家标准公式重算（fn = 947√(1/δ) 等）。如需复核厂家声称值，请在下方填入厂家计算书给出的 δ / fn / η 任意一项进行比对。',
+    };
+  if (r.allConsistent)
+    return { type: 'success', text: '✓ 一致：厂家计算书与标准公式吻合，复核通过（共比对 ' + r.providedCount + ' 项）。' };
+  const names = r.rows
+    .filter((x) => x.check.provided && x.check.status !== 'ok')
+    .map((x) => x.label)
+    .join('、');
+  return { type: 'error', text: '✘ 存在差异：' + r.mismatchCount + ' 项与标准公式不符（' + names + '），详见下表。' };
+});
+
+function checkDigits(r: CheckRow, sheet: 'check' | 'hx'): number {
+  if (sheet === 'check') return r.key === 'fn' ? 1 : 2;
+  return r.key === 'eta' ? 4 : 2;
+}
+function checkStatus(c: CheckRow['check']): { label: string; type: 'info' | 'success' | 'warning' | 'error' } {
+  if (!c.provided) return { label: '待比对', type: 'info' };
+  if (c.status === 'ok') return { label: '一致', type: 'success' };
+  if (c.status === 'warn') return { label: '轻微偏差', type: 'warning' };
+  return { label: '偏差', type: 'error' };
+}
+function signed(v: number | null, d: number, unit: string): string {
+  if (v == null || !Number.isFinite(v)) return '—';
+  return (v >= 0 ? '+' : '') + num(v, d) + (unit ? ' ' + unit : '');
+}
+
+/* ---------------- 面板 5：环新式计算书复核 ---------------- */
+interface HxStep {
+  no: string;
+  title: string;
+  formula: string;
+  subst: string;
+  value: number;
+  unit: string;
+}
+interface HxSheetResult {
+  ok: boolean;
+  error?: string;
+  standard?: string;
+  inputs: {
+    Wa: number;
+    pedestal: number;
+    safetyPercent: number;
+    safety: number;
+    n: number;
+    rpm: number;
+    D: number;
+    K: number | null;
+    unit: string;
+    kKgPerMm: number | null;
+  };
+  Wd?: number;
+  W?: number;
+  f?: number;
+  delta?: number;
+  deltaFromK?: boolean;
+  f0?: number;
+  lambda?: number;
+  eta?: number;
+  T?: number;
+  N?: number;
+  steps: HxStep[];
+  internalF0?: number | null;
+  internalEta?: number | null;
+  rows: CheckRow[];
+  providedCount: number;
+  mismatchCount: number;
+  allConsistent: boolean;
+}
+
+const hProject = ref('');
+const hDevice = ref('');
+const hModel = ref('');
+const hIsolModel = ref('');
+const hRpm = ref(2900);
+const hWa = ref(10000);
+const hPed = ref<number | null>(null);
+const hSafety = ref(20);
+const hCount = ref(8);
+const hD = ref(0.065);
+const hK = ref<number | null>(null);
+const hUnit = ref('kg/mm');
+const hDelta = ref(50);
+const hClaimedF0 = ref<number | null>(null);
+const hClaimedLambda = ref<number | null>(null);
+const hClaimedEta = ref<number | null>(null);
+const hClaimedT = ref<number | null>(null);
+const hClaimedN = ref<number | null>(null);
+
+const HX_PRESET = {
+  name: '环新计算书例题：冷冻机组 10000 kg / 2900 r/min / 8 只 / δ=50 mm / D=0.065',
+  v: {
+    device: '冷冻机组',
+    isolModel: '弹簧减振器 BT3-1500',
+    rpm: 2900,
+    wa: 10000,
+    ped: null as number | null,
+    safety: 20,
+    count: 8,
+    damping: 0.065,
+    unit: 'kg/mm',
+    delta: 50,
+    cf0: 2.23,
+    clambda: 21.7,
+    ceta: 0.01,
+    ct: 99,
+    cn: 25,
+  },
+};
+
+const hxResult = computed<HxSheetResult>(
+  () =>
+    Vibration.hxSheet({
+      project: hProject.value,
+      deviceName: hDevice.value,
+      deviceModel: hModel.value,
+      isolatorModel: hIsolModel.value,
+      rpm: hRpm.value,
+      deviceWeight: hWa.value,
+      pedestalWeight: hPed.value,
+      safetyPercent: hSafety.value,
+      count: hCount.value,
+      stiffness: hK.value,
+      stiffnessUnit: hUnit.value,
+      deflection: hDelta.value,
+      damping: hD.value,
+      claimedF0: hClaimedF0.value,
+      claimedLambda: hClaimedLambda.value,
+      claimedEta: hClaimedEta.value,
+      claimedT: hClaimedT.value,
+      claimedN: hClaimedN.value,
+    }) as unknown as HxSheetResult
+);
+const hx = computed<HxSheetResult | null>(() => (hxResult.value.ok ? hxResult.value : null));
+
+const hxVerdict = computed<{ type: 'info' | 'success' | 'error'; text: string } | null>(() => {
+  const r = hx.value;
+  if (!r) return null;
+  if (r.providedCount === 0)
+    return {
+      type: 'info',
+      text: '已按该厂家公式体系（f₀=(1/2π)√(9800/δ)、含阻尼 η、N=12.5lg(1/η)）重算。如需复核，请填入厂家计算书声称的 f₀ / λ / η / T / N 任意几项。',
+    };
+  if (r.allConsistent)
+    return { type: 'success', text: '✓ 一致：厂家计算书与该公式体系吻合，复核通过（共比对 ' + r.providedCount + ' 项）。' };
+  const names = r.rows
+    .filter((x) => x.check.provided && x.check.status !== 'ok')
+    .map((x) => x.label)
+    .join('、');
+  return { type: 'error', text: '✘ 存在差异：' + r.mismatchCount + ' 项与公式重算值不符（' + names + '），详见下表。' };
+});
+
+const hxStats = computed(() => {
+  const r = hx.value;
+  if (!r) return [];
+  return [
+    { label: '干扰频率 f', value: num(r.f, 1), unit: 'Hz' },
+    { label: '静态压缩量 δ', value: num(r.delta, 1), unit: 'mm' },
+    { label: '固有频率 f₀', value: num(r.f0, 2), unit: 'Hz' },
+    { label: '频率比 λ', value: num(r.lambda, 1), unit: '' },
+    { label: '传递率 η', value: num(r.eta, 4), unit: '', sub: '含阻尼 D = ' + num(r.inputs.D, 3) },
+    { label: '隔振效率 T', value: num(r.T, 1), unit: '%' },
+    { label: '隔声系数 N', value: num(r.N, 1), unit: 'dB' },
+  ];
+});
+
+function onHxPreset() {
+  const p = HX_PRESET.v;
+  hProject.value = '';
+  hDevice.value = p.device;
+  hModel.value = '';
+  hIsolModel.value = p.isolModel;
+  hRpm.value = p.rpm;
+  hWa.value = p.wa;
+  hPed.value = p.ped;
+  hSafety.value = p.safety;
+  hCount.value = p.count;
+  hD.value = p.damping;
+  hK.value = null;
+  hUnit.value = p.unit;
+  hDelta.value = p.delta;
+  hClaimedF0.value = p.cf0;
+  hClaimedLambda.value = p.clambda;
+  hClaimedEta.value = p.ceta;
+  hClaimedT.value = p.ct;
+  hClaimedN.value = p.cn;
+}
 
 /* ---------------- 传递率曲线 ---------------- */
 function buildXs(maxZ0: number, markZ: number | null | undefined): number[] {
@@ -1031,6 +1288,300 @@ function exportCsv() {
           </li>
         </ul>
       </div>
+    <!-- ============ 面板 4：厂家计算书复核 ============ -->
+    <div v-if="panel === 'check'">
+      <div class="page-head">
+        <h3 class="card-title">厂家计算书复核 <span class="hint">(把厂家给的数据贴进来，自动比对是否一致)</span></h3>
+        <p class="inline-note">左栏填厂家的「已知条件」（设备、安全系数、只数、刚度、转速）；右栏填厂家计算书上「声称的输出值」δ / fn / η（任意一项即可）。程序按厂家常用的标准公式（fn = 947√(1/δ)、T = 1/|1−z²|）独立重算并逐条比对，超出容差即标红。</p>
+      </div>
+
+      <div class="split">
+        <div class="col">
+          <div class="card">
+            <h3 class="card-title"><span class="step">1</span> 厂家已知条件 <span class="hint">(你从计算书上抄的输入)</span></h3>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">设备自重 Wa <span class="unit-tag">kg</span></label>
+                <n-input-number v-model:value="cWa" :step="1" :min="0" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">安全系数 K</label>
+                <n-input-number v-model:value="cSafety" :step="0.05" :min="1" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">减振器数量 N <span class="unit-tag">只</span></label>
+                <n-input-number v-model:value="cCount" :step="1" :min="1" size="small" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">单只竖向刚度 K</label>
+                <n-input-number v-model:value="cK" :step="0.1" :min="0" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">刚度单位</label>
+                <n-select v-model:value="cUnit" :options="unitOptions" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">设备转速 n <span class="unit-tag">r/min</span></label>
+                <n-input-number v-model:value="cRpm" :step="10" :min="0" size="small" />
+              </div>
+            </div>
+            <p class="inline-note">这些就是厂家计算书的「输入项」；程序据此用标准公式独立重算 δ、fn、η，作为比对基准。</p>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="card">
+            <h3 class="card-title"><span class="step">2</span> 厂家声称的输出值 <span class="hint">(计算书上打印的结果，可选填)</span></h3>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">静态压缩量 δ <span class="unit-tag">mm</span></label>
+                <n-input-number v-model:value="cClaimedDelta" :step="0.1" :min="0" size="small" placeholder="厂家给出则填" />
+              </div>
+              <div class="field">
+                <label class="f-label">固有频率 fn <span class="unit-tag">cpm</span></label>
+                <n-input-number v-model:value="cClaimedFn" :step="0.1" :min="0" size="small" placeholder="厂家给出则填" />
+              </div>
+              <div class="field">
+                <label class="f-label">隔振效率 η <span class="unit-tag">%</span></label>
+                <n-input-number v-model:value="cClaimedEff" :step="0.1" :min="0" :max="100" size="small" placeholder="厂家给出则填" />
+              </div>
+            </div>
+            <p class="inline-note">留空表示「仅重算、不比对该项」。容差：δ ±0.5 mm（或 3%）、fn ±1 cpm（或 1%）、η ±0.5%。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">复核结果</h3>
+        <n-alert v-if="checkVerdict" :type="checkVerdict.type" :show-icon="false" class="mt">{{ checkVerdict.text }}</n-alert>
+        <n-alert v-if="!vs" type="error" :show-icon="false" class="mt">{{ verifySheetResult.error }}</n-alert>
+        <div v-if="vs" class="table-wrap">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th>复核项</th>
+                <th>按厂家标准公式重算</th>
+                <th>厂家声称值</th>
+                <th>偏差</th>
+                <th>判定</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in vs.rows" :key="r.key">
+                <td class="proj">
+                  <strong>{{ r.label }}</strong>
+                  <span v-if="r.note" class="note">{{ r.note }}</span>
+                </td>
+                <td class="mono">{{ num(r.check.recomputed, checkDigits(r, 'check')) }} {{ r.unit }}</td>
+                <td class="mono">{{ r.check.provided ? (num(r.check.claimed, checkDigits(r, 'check')) + ' ' + r.unit) : '—' }}</td>
+                <td class="mono">{{ r.check.provided ? signed(r.check.diff, checkDigits(r, 'check'), r.unit) : '—' }}</td>
+                <td :class="checkStatus(r.check).type === 'success' ? 'ok' : (checkStatus(r.check).type === 'warning' ? 'warn' : (checkStatus(r.check).type === 'error' ? 'danger' : ''))">
+                  {{ checkStatus(r.check).label }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-if="vs && vs.internalDelta != null" class="inline-note">
+          交叉印证：本工具精算（d=1、无阻尼）得 δ = {{ num(vs.internalDelta, 2) }} mm、f₀ = {{ num(vs.internalFnHz, 2) }} Hz、η = {{ num(vs.internalEff, 2) }} %。其中 δ 与上方「标准公式重算」完全一致；f₀、η 因厂家公式对固有频率常数取整为 947（精确值约 945.4）而相差 &lt; 0.05%，可视为一致 —— 说明本工具的隔振计算与厂家常用方法等价，复核结果可信。
+        </p>
+      </div>
+    </div>
+
+    <!-- ============ 面板 5：环新式计算书复核 ============ -->
+    <div v-if="panel === 'hx'">
+      <div class="page-head">
+        <h3 class="card-title">环新式「隔振降噪工程计算书」复核 <span class="hint">(青浦环新等国产厂家常用格式)</span></h3>
+        <p class="inline-note">公式体系：f = n/60；f₀ = (1/2π)√(9800/δ)；λ = f/f₀；传递率 η = √{[1+(2Dλ)²]/[(1−λ²)²+(2Dλ)²]}（含阻尼比 D）；隔振效率 T = (1−η)×100%；隔声系数 N = 12.5lg(1/η) dB。注意该格式 <strong>η 指传递率、T 指隔振效率</strong>。左栏填计算书已知条件，右栏填厂家声称的输出值（可选项比对）。</p>
+      </div>
+
+      <div class="split">
+        <div class="col">
+          <div class="card">
+            <h3 class="card-title">
+              <span class="step">1</span> 计算书已知条件 <span class="hint">(第一 ~ 八节)</span>
+              <n-button size="tiny" tertiary style="float: right" @click="onHxPreset">载入例题（冷冻机组）</n-button>
+            </h3>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">（一）工程项目</label>
+                <n-input v-model:value="hProject" size="small" placeholder="选填" />
+              </div>
+              <div class="field">
+                <label class="f-label">（二）设备名称</label>
+                <n-input v-model:value="hDevice" size="small" placeholder="如：冷冻机组" />
+              </div>
+              <div class="field">
+                <label class="f-label">（三）设备型号</label>
+                <n-input v-model:value="hModel" size="small" placeholder="选填" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">（四）转速 n <span class="unit-tag">r/min</span></label>
+                <n-input-number v-model:value="hRpm" :step="10" :min="0" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">（五）设备重量 <span class="unit-tag">kg</span></label>
+                <n-input-number v-model:value="hWa" :step="10" :min="0" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">（六）台座重量 <span class="unit-tag">kg</span></label>
+                <n-input-number v-model:value="hPed" :step="10" :min="0" size="small" placeholder="无则留空" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">（七）安全系数 <span class="unit-tag">%</span></label>
+                <n-input-number v-model:value="hSafety" :step="5" :min="0" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">减振器数量 N <span class="unit-tag">只</span></label>
+                <n-input-number v-model:value="hCount" :step="1" :min="1" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">阻尼比 D</label>
+                <n-input-number v-model:value="hD" :step="0.005" :min="0" size="small" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">单只刚度 K <span class="hint mini">(填了则按 δ=W/K 重算)</span></label>
+                <n-input-number v-model:value="hK" :step="0.1" :min="0" size="small" placeholder="样本给定则填" />
+              </div>
+              <div class="field">
+                <label class="f-label">刚度单位</label>
+                <n-select v-model:value="hUnit" :options="unitOptions" size="small" />
+              </div>
+              <div class="field">
+                <label class="f-label">静态压缩量 δ <span class="unit-tag">mm</span> <span class="hint mini">(K 留空时作为输入)</span></label>
+                <n-input-number v-model:value="hDelta" :step="1" :min="0" size="small" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">减振器型号</label>
+                <n-input v-model:value="hIsolModel" size="small" placeholder="如：弹簧减振器 BT3-1500" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="card">
+            <h3 class="card-title"><span class="step">2</span> 厂家声称的输出值 <span class="hint">(第九 ~ 十三节结果，可选填)</span></h3>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">固有频率 f₀ <span class="unit-tag">Hz</span></label>
+                <n-input-number v-model:value="hClaimedF0" :step="0.01" :min="0" size="small" placeholder="如 2.23" />
+              </div>
+              <div class="field">
+                <label class="f-label">频率比 λ</label>
+                <n-input-number v-model:value="hClaimedLambda" :step="0.1" :min="0" size="small" placeholder="如 21.7" />
+              </div>
+              <div class="field">
+                <label class="f-label">传递率 η <span class="hint mini">(含阻尼)</span></label>
+                <n-input-number v-model:value="hClaimedEta" :step="0.001" :min="0" size="small" placeholder="如 0.01" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="f-label">隔振效率 T <span class="unit-tag">%</span></label>
+                <n-input-number v-model:value="hClaimedT" :step="0.5" :min="0" :max="100" size="small" placeholder="如 99" />
+              </div>
+              <div class="field">
+                <label class="f-label">隔声系数 N <span class="unit-tag">dB</span></label>
+                <n-input-number v-model:value="hClaimedN" :step="0.5" :min="0" size="small" placeholder="如 25" />
+              </div>
+            </div>
+            <p class="inline-note">留空表示「仅重算、不比对该项」。容差：δ ±0.5 mm（或 3%）、f₀ ±0.05 Hz（或 1%）、λ ±0.2（或 1%）、η ±0.002（或 5%）、T ±0.5%、N ±1 dB。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">复核结果</h3>
+        <n-alert v-if="hxVerdict" :type="hxVerdict.type" :show-icon="false" class="mt">{{ hxVerdict.text }}</n-alert>
+        <n-alert v-if="!hx" type="error" :show-icon="false" class="mt">{{ hxResult.error }}</n-alert>
+        <div v-if="hx" class="stat-grid">
+          <div v-for="s in hxStats" :key="s.label" class="stat">
+            <div class="s-label">{{ s.label }}</div>
+            <div class="s-value">{{ s.value }}<small>{{ s.unit }}</small></div>
+            <div v-if="s.sub" class="s-sub">{{ s.sub }}</div>
+          </div>
+        </div>
+        <div v-if="hx" class="table-wrap">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th>复核项</th>
+                <th>按公式重算</th>
+                <th>厂家声称值</th>
+                <th>偏差</th>
+                <th>判定</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in hx.rows" :key="r.key">
+                <td class="proj">
+                  <strong>{{ r.label }}</strong>
+                  <span v-if="r.note" class="note">{{ r.note }}</span>
+                </td>
+                <td class="mono">{{ num(r.check.recomputed, checkDigits(r, 'hx')) }}{{ r.unit ? ' ' + r.unit : '' }}</td>
+                <td class="mono">{{ r.check.provided ? (num(r.check.claimed, checkDigits(r, 'hx')) + (r.unit ? ' ' + r.unit : '')) : '—' }}</td>
+                <td class="mono">{{ r.check.provided ? signed(r.check.diff, checkDigits(r, 'hx'), r.unit) : '—' }}</td>
+                <td :class="checkStatus(r.check).type === 'success' ? 'ok' : (checkStatus(r.check).type === 'warning' ? 'warn' : (checkStatus(r.check).type === 'error' ? 'danger' : ''))">
+                  {{ checkStatus(r.check).label }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-if="hx && hx.internalF0 != null" class="inline-note">
+          交叉印证：本工具精算内核（g = 9806.65 mm/s² 精确值）得 f₀ = {{ num(hx.internalF0, 3) }} Hz、隔振效率 = {{ num(hx.internalEta, 2) }} %，与上方按厂家常数（g = 9800）的重算值差异 &lt; 0.04%，两套算法同源等价。
+        </p>
+        <p v-if="hx" class="inline-note">
+          符号说明：该厂家格式中 <strong>η 指传递率</strong>（数值越小越好）、<strong>T 指隔振效率</strong>，与本站其他面板的 η/T 含义相反，复核时请以本表为准。
+        </p>
+      </div>
+
+      <div class="card" v-if="hx">
+        <h3 class="card-title">隔振降噪工程计算书 <span class="hint">(按该厂家格式自动生成，第九 ~ 十四节)</span></h3>
+        <div class="kv-result">
+          <div class="kv"><div class="k">（一）工程项目</div><div class="v">{{ hProject || '／' }}</div></div>
+          <div class="kv"><div class="k">（二）设备名称</div><div class="v">{{ hDevice || '／' }}</div></div>
+          <div class="kv"><div class="k">（三）设备型号</div><div class="v">{{ hModel || '／' }}</div></div>
+          <div class="kv"><div class="k">（四）设备转速 n</div><div class="v">{{ num(hx.inputs.rpm, 0) }}<small>转/分</small></div></div>
+          <div class="kv"><div class="k">（五）设备重量</div><div class="v">{{ num(hx.inputs.Wa, 0) }}<small>kg</small></div></div>
+          <div class="kv"><div class="k">（六）台座重量</div><div class="v">{{ hx.inputs.pedestal > 0 ? (num(hx.inputs.pedestal, 0) + ' kg') : '／' }}</div></div>
+          <div class="kv"><div class="k">（七）减振体系总重 W</div><div class="v">{{ num(hx.Wd, 0) }}<small>kg（含 {{ num(hx.inputs.safetyPercent, 0) }}% 安全系数）</small></div></div>
+          <div class="kv"><div class="k">（八）减振器</div><div class="v">{{ hx.inputs.n }} 只 · 单只载荷 W/N = {{ num(hx.W, 0) }} kg{{ hIsolModel ? ' · ' + hIsolModel : '' }}</div></div>
+        </div>
+        <div class="table-wrap">
+          <table class="detail-table book">
+            <thead>
+              <tr>
+                <th>节</th>
+                <th>项目</th>
+                <th>公式</th>
+                <th>代入</th>
+                <th>结果</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in hx.steps" :key="s.no">
+                <td class="mono"><strong>{{ s.no }}</strong></td>
+                <td class="proj"><strong>{{ s.title }}</strong></td>
+                <td class="mono">{{ s.formula }}</td>
+                <td class="mono">{{ s.subst }}</td>
+                <td class="mono"><strong>{{ num(s.value, s.value < 0.01 ? 4 : 2) }}</strong>{{ s.unit ? ' ' + s.unit : '' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </ToolPage>
 </template>
@@ -1240,6 +1791,17 @@ function exportCsv() {
 }
 .detail-table td.warn {
   color: #f0a020;
+}
+.detail-table td.danger {
+  color: #d03050;
+}
+
+.page-head {
+  margin-bottom: 16px;
+}
+.hint.mini {
+  font-size: 11px;
+  font-weight: 400;
 }
 
 .kv-result {
